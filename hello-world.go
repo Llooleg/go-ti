@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"strings"
@@ -13,6 +15,24 @@ import (
 	"github.com/VirusTotal/vt-go"
 	"github.com/joho/godotenv"
 )
+
+type AbuseIPDBResponse struct {
+	Data struct {
+		IPAddress            string   `json:"ipAddress"`
+		IsPublic             bool     `json:"isPublic"`
+		IPVersion            int      `json:"ipVersion"`
+		IsWhitelisted        bool     `json:"isWhitelisted"`
+		AbuseConfidenceScore int      `json:"abuseConfidenceScore"`
+		CountryCode          string   `json:"countryCode"`
+		UsageType            string   `json:"usageType"`
+		ISP                  string   `json:"isp"`
+		Domain               string   `json:"domain"`
+		Hostnames            []string `json:"hostnames"`
+		TotalReports         int      `json:"totalReports"`
+		NumDistinctUsers     int      `json:"numDistinctUsers"`
+		LastReportedAt       string   `json:"lastReportedAt"`
+	} `json:"data"`
+}
 
 func isLink(str string) bool {
 	u, err := url.ParseRequestURI(str)
@@ -35,6 +55,63 @@ func getSHA256(filePath string) (string, error) {
 	}
 	return fmt.Sprintf("%x", hash.Sum(nil)), nil
 }
+func getIPAbuseReport(inputURL string) string {
+	apiKey := os.Getenv("IPABUSEKEY")
+	if apiKey == "" {
+		log.Fatal("IPABUSEKEY is not set in the environment variables.")
+	}
+	parsedURL, err := url.Parse(inputURL)
+	if err != nil {
+		log.Fatal(err)
+	}
+	strippedURL := parsedURL.Hostname()
+	ips, err := net.LookupIP(strippedURL)
+	if err != nil {
+		log.Fatalf("Failed to resolve domain: %v", err)
+	}
+	strippedURL = strings.TrimSpace(strippedURL)
+	// 2. Filter for the first valid IPv4 (A record) address
+	var ipAddress string
+	for _, ip := range ips {
+		if ipv4 := ip.To4(); ipv4 != nil {
+			fmt.Printf("First A Record: %s\n", ipv4.String())
+			ipAddress = ipv4.String()
+			break
+		}
+	}
+
+	if ipAddress == "" {
+		log.Fatalf("No A record (IPv4) found for host: %s", strippedURL)
+	}
+
+	apiPath := fmt.Sprintf("https://api.abuseipdb.com/api/v2/check?ipAddress=%s", ipAddress)
+	req, err := http.NewRequest("GET", apiPath, nil)
+	if err != nil {
+		log.Fatalf("Failed to create request: %v", err)
+	}
+	req.Header.Set("Key", apiKey)
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Fatalf("Failed to retrieve abuse report: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		panic(err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		log.Fatalf("AbuseIPDB API returned non-OK status: %s (body: %s)", resp.Status, string(body))
+	}
+
+	status := fmt.Sprintf("Status: %s\n", resp.Status)
+	bodyStr := fmt.Sprintf("Body: %s\n", string(body))
+	return fmt.Sprintf("%s%s", status, bodyStr)
+}
 
 func linkAnalysis(client *vt.Client, link string) {
 	encodedURL := base64.RawURLEncoding.EncodeToString([]byte(strings.TrimSpace(link)))
@@ -56,6 +133,14 @@ func linkAnalysis(client *vt.Client, link string) {
 	} else {
 		fmt.Printf("Analysis Stats: %v\n", stats)
 	}
+	ipabuseReportURL := getIPAbuseReport(link)
+	if ipabuseReportURL != "" {
+		report := getIPAbuseReport(ipabuseReportURL)
+		fmt.Print(report)
+	} else {
+		fmt.Println("No IP address found for the provided link.")
+	}
+
 }
 
 func fileAnalysis(client *vt.Client, filePath string) {
@@ -76,7 +161,7 @@ func fileAnalysis(client *vt.Client, filePath string) {
 	}
 	stats, err := obj.Get("last_analysis_stats")
 	if err != nil {
-		fmt.Println("Could not find stats for this link.")
+		fmt.Println("Could not find stats for this file.")
 	} else {
 		fmt.Printf("Analysis Stats: %v\n", stats)
 	}
