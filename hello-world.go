@@ -70,7 +70,6 @@ func getIPAbuseReport(inputURL string) string {
 		log.Fatalf("Failed to resolve domain: %v", err)
 	}
 	strippedURL = strings.TrimSpace(strippedURL)
-	// 2. Filter for the first valid IPv4 (A record) address
 	var ipAddress string
 	for _, ip := range ips {
 		if ipv4 := ip.To4(); ipv4 != nil {
@@ -133,9 +132,8 @@ func linkAnalysis(client *vt.Client, link string) {
 	} else {
 		fmt.Printf("Analysis Stats: %v\n", stats)
 	}
-	ipabuseReportURL := getIPAbuseReport(link)
-	if ipabuseReportURL != "" {
-		report := getIPAbuseReport(ipabuseReportURL)
+	report := getIPAbuseReport(link)
+	if report != "" {
 		fmt.Print(report)
 	} else {
 		fmt.Println("No IP address found for the provided link.")
