@@ -1,1 +1,1 @@
-Simple cli only TI tool; made for go learning mainly, not serious
+Simple cli only TI tool;
