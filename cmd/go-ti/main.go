@@ -25,6 +25,7 @@ import (
 	"go-ti/internal/repository/virustotal"
 	"go-ti/internal/usecase"
 	"go-ti/pkg/checksum"
+	"go-ti/pkg/ratelimit"
 )
 
 // webShutdownTimeout bounds the graceful shutdown of the web server.
@@ -50,27 +51,42 @@ func run(ctx context.Context, webMode bool, addr string, args []string) error {
 		return fmt.Errorf("load config: %w", err)
 	}
 
-	service := usecase.NewAnalysisService(
-		virustotal.New(cfg.VirusTotalAPIKey),
-		abuseipdb.New(cfg.AbuseIPDBAPIKey),
-		dnsresolver.New(),
-		checksum.Hasher{},
-	)
+	vtRepo := virustotal.New(cfg.VirusTotalAPIKey)
+	abuseRepo := abuseipdb.New(cfg.AbuseIPDBAPIKey)
+	resolver := dnsresolver.New()
+
+	service := usecase.NewAnalysisService(vtRepo, abuseRepo, resolver, checksum.Hasher{})
 
 	if webMode {
-		return runWebServer(ctx, addr, service)
+		enricher, err := usecase.NewEnrichmentService(usecase.EnrichmentDeps{
+			VirusTotal:        vtRepo,
+			Abuse:             abuseRepo,
+			Resolver:          resolver,
+			Extractor:         usecase.NewIOCExtractor(cfg.Enrichment.MaxIOCsPerAlert, cfg.Enrichment.DomainSkipSuffixes),
+			Cache:             usecase.NewVerdictCache(cfg.Enrichment.IOCCacheTTL),
+			VirusTotalLimiter: ratelimit.New(cfg.Enrichment.VTRatePerMin),
+			AbuseLimiter:      ratelimit.New(cfg.Enrichment.AbuseRatePerMin),
+		})
+		if err != nil {
+			return fmt.Errorf("build enrichment service: %w", err)
+		}
+		return runWebServer(ctx, addr, service, enricher, cfg)
 	}
 
 	handler := cli.New(service, os.Stdin, os.Stdout)
 	return handler.Run(ctx, args)
 }
 
-func runWebServer(ctx context.Context, addr string, service *usecase.AnalysisService) error {
+func runWebServer(ctx context.Context, addr string, service *usecase.AnalysisService, enricher *usecase.EnrichmentService, cfg config.Config) error {
 	logger := slog.Default()
+
+	handler := web.New(service, logger,
+		web.WithEnrichment(enricher, cfg.Enrichment.WebToken, cfg.Enrichment.EnrichTimeout),
+	).Handler()
 
 	httpServer := &http.Server{
 		Addr:              addr,
-		Handler:           web.New(service, logger).Handler(),
+		Handler:           handler,
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		// Analyses call several external APIs sequentially, so writes can be slow.
