@@ -5,7 +5,7 @@ type IOCType string
 
 const (
 	IOCTypeURL      IOCType = "url"
-	IOCTypeDomain   IOCType = "domain"    // bare hostname, e.g. from DNS logs
+	IOCTypeDomain   IOCType = "domain" // bare hostname, e.g. from DNS logs
 	IOCTypeIP       IOCType = "ip"
 	IOCTypeFileHash IOCType = "file_hash" // md5 | sha1 | sha256
 )
@@ -51,11 +51,11 @@ type EnrichmentResult struct {
 
 // EnrichmentSummary aggregates the outcome of enriching one alert.
 type EnrichmentSummary struct {
-	IOCsFound   int `json:"iocs_found"`   // IOCs extracted (post-cap)
-	LookedUp    int `json:"looked_up"`    // IOCs processed (cache hit or lookup)
-	Malicious   int `json:"malicious"`    // verdict == malicious
-	Suspicious  int `json:"suspicious"`   // verdict == suspicious
-	Failures    int `json:"failures"`     // lookups that returned an error
+	IOCsFound  int `json:"iocs_found"` // IOCs extracted (post-cap)
+	LookedUp   int `json:"looked_up"`  // IOCs processed (cache hit or lookup)
+	Malicious  int `json:"malicious"`  // verdict == malicious
+	Suspicious int `json:"suspicious"` // verdict == suspicious
+	Failures   int `json:"failures"`   // lookups that returned an error
 }
 
 // EnrichmentResponse is the payload returned to the Wazuh integration script.
