@@ -6,10 +6,13 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"go-ti/internal/repository/virustotal"
 )
+
+const sha256Hex = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
 
 func testClient(t *testing.T, handler http.HandlerFunc) *virustotal.Client {
 	t.Helper()
@@ -70,6 +73,29 @@ func TestFileStats(t *testing.T) {
 	}
 	if stats.Malicious != 5 || stats.Harmless != 60 {
 		t.Errorf("unexpected stats: %+v", stats)
+	}
+}
+
+func TestHashStats(t *testing.T) {
+	client := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/files/"+sha256Hex {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":{"attributes":{"last_analysis_stats":{"malicious":7,"harmless":55}}}}`))
+	})
+
+	stats, err := client.HashStats(context.Background(), "SHA256", strings.ToUpper(sha256Hex))
+	if err != nil {
+		t.Fatalf("HashStats() error = %v", err)
+	}
+	if stats.Malicious != 7 || stats.Harmless != 55 {
+		t.Errorf("unexpected stats: %+v", stats)
+	}
+
+	if _, err := client.HashStats(context.Background(), "crc32", "deadbeef"); err == nil {
+		t.Error("HashStats() expected error for unsupported algorithm")
 	}
 }
 
