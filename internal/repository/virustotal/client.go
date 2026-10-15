@@ -70,6 +70,18 @@ func (c *Client) FileStats(ctx context.Context, sha256 string) (domain.AnalysisS
 	return c.fetchStats(ctx, "/files/"+sha256)
 }
 
+// HashStats returns the last analysis stats for the file identified by a hash
+// of the given algorithm (md5, sha1 or sha256).
+func (c *Client) HashStats(ctx context.Context, algo, hash string) (domain.AnalysisStats, error) {
+	switch strings.ToLower(strings.TrimSpace(algo)) {
+	case domain.HashAlgoMD5, domain.HashAlgoSHA1, domain.HashAlgoSHA256:
+	default:
+		return domain.AnalysisStats{}, fmt.Errorf("unsupported hash algorithm %q", algo)
+	}
+	// VirusTotal file identifiers are lowercase hex.
+	return c.fetchStats(ctx, "/files/"+strings.ToLower(hash))
+}
+
 type apiReport struct {
 	Data struct {
 		Attributes struct {

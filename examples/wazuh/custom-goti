@@ -1,0 +1,90 @@
+#!/usr/bin/env python3
+"""Wazuh integration: enrich alerts with go-ti threat-intelligence verdicts.
+
+Wazuh invokes this script (see ossec.conf.snippet) with:
+    custom-goti <alert_file> <api_key> <hook_url>
+
+The alert JSON is POSTed to the go-ti /api/enrich endpoint; the enriched
+response is written next to the alert log and summarized on stdout.
+
+Environment:
+    GOTI_WEB_TOKEN   optional bearer token when go-ti runs with GOTI_WEB_TOKEN
+"""
+import json
+import os
+import sys
+import urllib.request
+
+HOOK_TIMEOUT = 20  # seconds; keep in sync with go-ti ENRICH_TIMEOUT
+OUTPUT_DIR = "/var/ossec/logs/integrations"
+
+
+def main() -> int:
+    if len(sys.argv) < 4:
+        print("usage: custom-goti <alert_file> <api_key> <hook_url>", file=sys.stderr)
+        return 1
+
+    alert_file, _api_key, hook_url = sys.argv[1], sys.argv[2], sys.argv[3]
+
+    try:
+        with open(alert_file, encoding="utf-8") as fh:
+            alert = json.load(fh)
+    except (OSError, ValueError) as exc:
+        print(f"custom-goti: cannot read alert file: {exc}", file=sys.stderr)
+        return 1
+
+    enriched = post_alert(hook_url, alert)
+    if enriched is None:
+        return 1
+
+    summarize(enriched)
+    save(enriched, alert_file)
+    return 0
+
+
+def post_alert(hook_url: str, alert: dict) -> dict | None:
+    headers = {"Content-Type": "application/json"}
+    token = os.environ.get("GOTI_WEB_TOKEN", "")
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+
+    request = urllib.request.Request(
+        hook_url,
+        data=json.dumps(alert).encode("utf-8"),
+        headers=headers,
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=HOOK_TIMEOUT) as response:
+            return json.load(response)
+    except Exception as exc:  # noqa: BLE001 - integration must never crash Wazuh
+        print(f"custom-goti: enrichment request failed: {exc}", file=sys.stderr)
+        return None
+
+
+def summarize(enriched: dict) -> None:
+    summary = enriched.get("summary", {})
+    verdicts = ", ".join(
+        f"{item['ioc']['type']}={item['verdict']}" for item in enriched.get("enrichments", [])
+    )
+    print(
+        "custom-goti: enriched alert: "
+        f"iocs={summary.get('iocs_found', 0)} "
+        f"malicious={summary.get('malicious', 0)} "
+        f"suspicious={summary.get('suspicious', 0)} "
+        f"failures={summary.get('failures', 0)} [{verdicts}]"
+    )
+
+
+def save(enriched: dict, alert_file: str) -> None:
+    try:
+        os.makedirs(OUTPUT_DIR, exist_ok=True)
+        out = os.path.join(OUTPUT_DIR, f"goti-{os.path.basename(alert_file)}.json")
+        with open(out, "w", encoding="utf-8") as fh:
+            json.dump(enriched, fh, indent=2)
+    except OSError as exc:
+        print(f"custom-goti: cannot write enriched output: {exc}", file=sys.stderr)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

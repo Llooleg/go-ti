@@ -33,6 +33,7 @@ The web GUI serves a browser frontend plus a JSON API:
 | ----------------- | ------ | ------------------------------------ |
 | `/`               | GET    | embedded single-page GUI             |
 | `/api/analyze`    | POST   | body `{"input": "..."}` → report JSON |
+| `/api/enrich`     | POST   | Wazuh alert JSON → per-IOC verdicts  |
 | `/api/health`     | GET    | liveness check                       |
 
 ```sh
@@ -43,6 +44,14 @@ curl -s localhost:8080/api/analyze \
 
 By default the server binds to `127.0.0.1` so your API-key-backed lookups
 are not exposed to the network; override with `-addr`.
+
+### Wazuh alert enrichment
+
+The web server also exposes `POST /api/enrich`: it accepts a Wazuh alert JSON,
+extracts IOCs (URLs, domains, IPs, file hashes), and returns per-IOC verdicts
+from VirusTotal / AbuseIPDB — with rate limiting and caching. See
+[`examples/wazuh/README.md`](examples/wazuh/README.md) for the Wazuh-side
+integration script and [`WazuhAPI.md`](WazuhAPI.md) for the full design.
 
 ## Configuration
 

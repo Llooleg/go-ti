@@ -25,7 +25,10 @@ async function analyze() {
   try {
     const response = await fetch('/api/analyze', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: Object.assign(
+        { 'Content-Type': 'application/json' },
+        authHeaders()
+      ),
       body: JSON.stringify({ input: target }),
     });
     const data = await response.json();
@@ -154,6 +157,12 @@ function hideStatus() {
 function setLoading(loading) {
   button.disabled = loading;
   button.textContent = loading ? 'Analyzing…' : 'Analyze';
+}
+
+// authHeaders returns the bearer header when a token was captured from ?token=.
+function authHeaders() {
+  const token = sessionStorage.getItem('goti-token');
+  return token ? { Authorization: 'Bearer ' + token } : {};
 }
 
 // el builds an element with attributes and text content.

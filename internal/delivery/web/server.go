@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"go-ti/internal/domain"
 )
@@ -26,37 +27,67 @@ type AnalysisService interface {
 	Analyze(ctx context.Context, input string) (domain.AnalysisResult, error)
 }
 
+// EnrichmentService enriches Wazuh alerts with threat-intelligence verdicts.
+type EnrichmentService interface {
+	Enrich(ctx context.Context, alert map[string]any) domain.EnrichmentResponse
+}
+
 // Server serves the web GUI and the JSON API.
 type Server struct {
-	service AnalysisService
-	logger  *slog.Logger
-	mux     *http.ServeMux
+	service  AnalysisService
+	enricher EnrichmentService
+	logger   *slog.Logger
+	mux      *http.ServeMux
+
+	// enrichment settings
+	enrichTimeout time.Duration
+	token         string // bearer token guarding /api/* when set
+}
+
+// Option customizes a Server.
+type Option func(*Server)
+
+// WithEnrichment enables the POST /api/enrich endpoint. When token is
+// non-empty, all /api/* endpoints require "Authorization: Bearer <token>".
+func WithEnrichment(enricher EnrichmentService, token string, timeout time.Duration) Option {
+	return func(s *Server) {
+		s.enricher = enricher
+		s.token = token
+		if timeout > 0 {
+			s.enrichTimeout = timeout
+		}
+	}
 }
 
 // New creates a web server around the given analysis service.
 // A nil logger falls back to slog.Default().
-func New(service AnalysisService, logger *slog.Logger) *Server {
+func New(service AnalysisService, logger *slog.Logger, opts ...Option) *Server {
 	if logger == nil {
 		logger = slog.Default()
 	}
 
 	s := &Server{
-		service: service,
-		logger:  logger,
-		mux:     http.NewServeMux(),
+		service:       service,
+		logger:        logger,
+		mux:           http.NewServeMux(),
+		enrichTimeout: 15 * time.Second,
+	}
+	for _, opt := range opts {
+		opt(s)
 	}
 
 	s.mux.HandleFunc("GET /{$}", s.handleIndex)
 	s.mux.Handle("GET /static/", http.FileServerFS(staticFS))
 	s.mux.HandleFunc("GET /api/health", s.handleHealth)
 	s.mux.HandleFunc("POST /api/analyze", s.handleAnalyze)
+	s.mux.HandleFunc("POST /api/enrich", s.handleEnrich)
 
 	return s
 }
 
 // Handler returns the fully middleware-wrapped HTTP handler.
 func (s *Server) Handler() http.Handler {
-	return s.withLogging(s.withSecurityHeaders(s.withRecovery(s.mux)))
+	return s.withLogging(s.withSecurityHeaders(s.withAuth(s.withRecovery(s.mux))))
 }
 
 type analyzeRequest struct {

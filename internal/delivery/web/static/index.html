@@ -29,6 +29,13 @@
 
   <footer>go-ti &mdash; educational project, not for production use</footer>
 
-  <script src="/static/app.js"></script>
+  <script>
+  // Capture ?token=... once per session so the GUI can call token-protected APIs.
+  (function () {
+    var t = new URLSearchParams(location.search).get('token');
+    if (t) sessionStorage.setItem('goti-token', t);
+  })();
+</script>
+<script src="/static/app.js"></script>
 </body>
 </html>

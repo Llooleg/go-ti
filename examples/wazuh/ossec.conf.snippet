@@ -1,0 +1,9 @@
+<ossec_config>
+  <integration>
+    <name>custom-goti</name>
+    <hook_url>http://127.0.0.1:8080/api/enrich</hook_url>
+    <level>7</level>
+    <alert_format>json</alert_format>
+    <group>syscheck,rootcheck,</group>
+  </integration>
+</ossec_config>
