@@ -8,6 +8,9 @@
 *.so
 *.dylib
 
+# Compiled CLI binary (Makefile output)
+/go-ti
+
 # Test binary, built with `go test -c`
 *.test
 

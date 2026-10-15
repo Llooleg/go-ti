@@ -1,0 +1,220 @@
+:root {
+  --bg: #0d1117;
+  --panel: #161b22;
+  --panel-2: #1c2330;
+  --border: #2d3644;
+  --text: #e6edf3;
+  --muted: #8b949e;
+  --accent: #58a6ff;
+  --bad: #f85149;
+  --warn: #d29922;
+  --good: #3fb950;
+  --meh: #6e7681;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.wrap {
+  width: min(760px, 100% - 2rem);
+  margin: 3rem auto 2rem;
+  flex: 1;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 1.9rem;
+  letter-spacing: 0.02em;
+}
+
+.logo { color: var(--accent); }
+
+.tagline {
+  margin: 0.3rem 0 1.6rem;
+  color: var(--muted);
+}
+
+/* --- form --- */
+
+#lookup-form {
+  display: flex;
+  gap: 0.6rem;
+}
+
+#target {
+  flex: 1;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 1rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+#target:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+#analyze-btn {
+  padding: 0.7rem 1.4rem;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--accent);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+#analyze-btn:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+#analyze-btn:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.hint {
+  margin: 0.6rem 0 2rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+/* --- status banners --- */
+
+.status {
+  padding: 0.8rem 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.2rem;
+  font-size: 0.95rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.status.error   { border: 1px solid var(--bad);  background: rgba(248, 81, 73, 0.08);  color: var(--bad); }
+.status.warning { border: 1px solid var(--warn); background: rgba(210, 153, 34, 0.08); color: var(--warn); }
+.status.info    { border: 1px solid var(--accent); background: rgba(88, 166, 255, 0.08); color: var(--accent); }
+
+/* --- report --- */
+
+#report h2 {
+  margin: 1.4rem 0 0.4rem;
+  font-size: 1.2rem;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.6rem;
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9rem;
+  word-break: break-all;
+  margin-bottom: 1rem;
+}
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+  padding: 1.1rem 1.3rem;
+  margin-bottom: 1.2rem;
+}
+
+.card h3 {
+  margin: 0 0 0.9rem;
+  font-size: 1rem;
+  color: var(--text);
+}
+
+/* stats tiles */
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 0.6rem;
+}
+
+.tile {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-2);
+  padding: 0.6rem 0.4rem;
+  text-align: center;
+}
+
+.tile .num {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.tile.bad  .num { color: var(--bad); }
+.tile.warn .num { color: var(--warn); }
+.tile.good .num { color: var(--good); }
+.tile.meh  .num { color: var(--meh); }
+
+.tile .label {
+  display: block;
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-transform: lowercase;
+  word-break: break-word;
+}
+
+/* abuse card */
+
+.bar {
+  height: 10px;
+  border-radius: 5px;
+  background: var(--panel-2);
+  overflow: hidden;
+}
+
+.bar-fill { height: 100%; border-radius: 5px; }
+.bar-fill.low  { background: var(--good); }
+.bar-fill.mid  { background: var(--warn); }
+.bar-fill.high { background: var(--bad); }
+
+.bar-label {
+  margin: 0.35rem 0 0.9rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+dl.fields {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.3rem 1.2rem;
+  margin: 0;
+}
+
+dl.fields dt { color: var(--muted); }
+dl.fields dd {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9rem;
+  word-break: break-word;
+}
+
+footer {
+  padding: 1rem;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
