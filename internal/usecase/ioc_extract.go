@@ -249,8 +249,9 @@ func isValidDomain(s string) bool {
 // isPublicIP reports whether the IP is worth reporting as an IOC
 // (private, loopback, link-local, multicast and unspecified addresses are not).
 func isPublicIP(ip net.IP) bool {
-	return !(ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast() ||
-		ip.IsLinkLocalMulticast() || ip.IsMulticast() || ip.IsUnspecified())
+	private := ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast() ||
+		ip.IsLinkLocalMulticast() || ip.IsMulticast() || ip.IsUnspecified()
+	return !private
 }
 
 func isHex(s string) bool {
@@ -258,7 +259,9 @@ func isHex(s string) bool {
 		return false
 	}
 	for _, r := range s {
-		if !((r >= '0' && r <= '9') || (r >= 'a' && r <= 'f')) {
+		isDigit := r >= '0' && r <= '9'
+		isLowerHex := r >= 'a' && r <= 'f'
+		if !isDigit && !isLowerHex {
 			return false
 		}
 	}
