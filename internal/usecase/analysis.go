@@ -20,6 +20,7 @@ var ErrEmptyInput = errors.New("usecase: empty input")
 type VirusTotal interface {
 	URLStats(ctx context.Context, rawURL string) (domain.AnalysisStats, error)
 	FileStats(ctx context.Context, sha256 string) (domain.AnalysisStats, error)
+	HashStats(ctx context.Context, algo, hash string) (domain.AnalysisStats, error)
 }
 
 // AbuseIPDB provides IP abuse reports. Implemented by repository adapters.

@@ -15,9 +15,13 @@ type stubVirusTotal struct {
 	urlErr    error
 	fileStats domain.AnalysisStats
 	fileErr   error
+	hashStats domain.AnalysisStats
+	hashErr   error
 
 	gotURL     string
 	gotFileSHA string
+	gotHash    string
+	gotHashes  int
 }
 
 func (s *stubVirusTotal) URLStats(_ context.Context, rawURL string) (domain.AnalysisStats, error) {
@@ -28,6 +32,12 @@ func (s *stubVirusTotal) URLStats(_ context.Context, rawURL string) (domain.Anal
 func (s *stubVirusTotal) FileStats(_ context.Context, sha256 string) (domain.AnalysisStats, error) {
 	s.gotFileSHA = sha256
 	return s.fileStats, s.fileErr
+}
+
+func (s *stubVirusTotal) HashStats(_ context.Context, algo, hash string) (domain.AnalysisStats, error) {
+	s.gotHash = algo + ":" + hash
+	s.gotHashes++
+	return s.hashStats, s.hashErr
 }
 
 type stubAbuseIPDB struct {
